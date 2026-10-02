@@ -15,7 +15,7 @@ $sourceFiles = @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'src') -Fil
 $outputDirectory = Join-Path (Join-Path $PSScriptRoot 'build\tests') $Platform
 New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
 $testNames = @('TimingChecks', 'SequenceDataChecks', 'PlaybackTests', 'ProcessTests')
-if ($IncludeVisualUi) { $testNames += 'TimelineVisualChecks' }
+if ($IncludeVisualUi) { $testNames += @('TimelineVisualChecks', 'MenuLifecycleChecks') }
 $results = @()
 
 foreach ($testName in $testNames) {
@@ -29,6 +29,7 @@ foreach ($testName in $testNames) {
     if ($testName -eq 'SequenceDataChecks') { $arguments = @($testDirectory) }
     elseif ($testName -eq 'ProcessTests') { $arguments = @($testDirectory) }
     elseif ($testName -eq 'TimelineVisualChecks') { $arguments = @($PSScriptRoot, $testDirectory) }
+    elseif ($testName -eq 'MenuLifecycleChecks') { $arguments = @($testDirectory) }
     $testOutput = @(& $testExecutable @arguments 2>&1)
     $testExitCode = $LASTEXITCODE
     foreach ($line in $testOutput) { Write-Output $line }

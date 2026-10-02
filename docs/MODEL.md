@@ -2,13 +2,13 @@
 
 Speaker Studio использует [MuScriptor Small](https://huggingface.co/MuScriptor/muscriptor-small) от Kyutai × Mirelo для локального MP3/WAV → MIDI. Модель возвращает ноты и инструментальные партии; плеер затем выбирает партию и сводит её к одному голосу для speaker.
 
-В [релизе 2.0.1](https://github.com/esinkirill/speaker-studio/releases/tag/v2.0.1) уже находятся веса, исходники модели и окружение Python для CPU. Для конвертации не нужны GPU или учётная запись Hugging Face.
+В [релизе 2.0.2](https://github.com/esinkirill/speaker-studio/releases/tag/v2.0.2) уже находятся веса, исходники модели и окружение Python для CPU. Для конвертации не нужны GPU или учётная запись Hugging Face.
 
 ## Установка готового приложения
 
 Требуется Windows 10 22H2 или Windows 11, x64.
 
-1. Распакуй `SpeakerStudio-2.0.1-win-x64-with-model.zip` целиком.
+1. Распакуй `SpeakerStudio-2.0.2-win-x64-with-model.zip` целиком.
 2. Если подходящего VC runtime нет, установи [Microsoft Visual C++ v14 x64](https://aka.ms/vc14/vc_redist.x64.exe).
 3. Запусти `Prepare-Audio.cmd` с интернетом. Он скачает фиксированную сборку FFmpeg от BtbN и Essentia.js, проверит контрольные суммы архивов и разместит компоненты в папке приложения.
 4. Открой `SpeakerStudio.exe` → MP3 → MIDI, выбери аудиофайл и нажми «Создать MIDI». Результаты сохраняются в `output/` внутри папки приложения.

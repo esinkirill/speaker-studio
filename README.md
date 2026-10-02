@@ -14,8 +14,8 @@ Speaker Studio — Windows приложение для превращения MP
 
 ## Скачать и запустить
 
-**[Скачать приложение с MuScriptor Small — ZIP, 388 МБ](https://github.com/esinkirill/speaker-studio/releases/download/v2.0.1/SpeakerStudio-2.0.1-win-x64-with-model.zip)**  
-[Страница релиза](https://github.com/esinkirill/speaker-studio/releases/tag/v2.0.1)
+**[Скачать приложение с MuScriptor Small — ZIP, 388 МБ](https://github.com/esinkirill/speaker-studio/releases/download/v2.0.2/SpeakerStudio-2.0.2-win-x64-with-model.zip)**  
+[Страница релиза](https://github.com/esinkirill/speaker-studio/releases/tag/v2.0.2)
 
 Нужна **Windows 10 22H2 или Windows 11, x64**. Модель, Python, PyTorch CPU,
 Node и InpOut уже входят в комплект.
@@ -31,6 +31,10 @@ Node и InpOut уже входят в комплект.
 по руководству своей платы. Этот выход требует прав administrator: InpOut
 обращается к портам через kernel driver. Сначала мелодию можно послушать через
 выход **«Колонки — предпросмотр»**.
+
+В версии 2.0.2 исправлено исключение при выборе партии MIDI. Для обновления
+уже распакованной версии достаточно закрыть приложение и заменить EXE из
+маленького `SpeakerStudio-2.0.2-hotfix.zip` на странице релиза.
 
 ## Как получается мелодия
 

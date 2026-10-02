@@ -1,12 +1,12 @@
 # Зависимости и источники
 
-Релиз 2.0.1 включает приложение, MuScriptor Small, окружение Python для CPU, Node и InpOut. FFmpeg и Essentia.js загружаются командой `Prepare-Audio.cmd`. Для нативных Python/Torch библиотек нужен системный Microsoft Visual C++ v14 x64.
+Релиз 2.0.2 включает приложение, MuScriptor Small, окружение Python для CPU, Node и InpOut. FFmpeg и Essentia.js загружаются командой `Prepare-Audio.cmd`. Для нативных Python/Torch библиотек нужен системный Microsoft Visual C++ v14 x64.
 
 ## Компоненты
 
 | Компонент | Версия | Источник и расположение |
 | --- | --- | --- |
-| Speaker Studio | 2.0.1, C# 5 / .NET Framework 4 / AnyCPU | Исходники `speaker-player/src/`, `SpeakerStudio.exe` |
+| Speaker Studio | 2.0.2, C# 5 / .NET Framework 4 / AnyCPU | Исходники `speaker-player/src/`, `SpeakerStudio.exe` |
 | InpOut | 1.5.0.1 | [Highrez / Phil Gibbons](https://www.highrez.co.uk/Downloads/InpOut32/), DLL рядом с EXE |
 | MuScriptor Small | Около 103M параметров | [Kyutai × Mirelo](https://huggingface.co/MuScriptor/muscriptor-small), `models/muscriptor-small/` |
 | Исходники MuScriptor | `7f213afecf23bd6a1b8672aa223690ee9807cefb` | [Репозиторий авторов](https://github.com/muscriptor/muscriptor), пакет в `runtime/transcription/site-packages/` |

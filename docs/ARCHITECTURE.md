@@ -261,7 +261,7 @@ JSON-отчёты используют замену расширения на `.
 
 ## 9. Окружение и расположение компонентов
 
-В [релизе 2.0.1](https://github.com/esinkirill/speaker-studio/releases/tag/v2.0.1) модель, окружение Python для CPU и Node включены в архив. Для нативных библиотек Python/Torch нужен системный VC14 x64. `Prepare-Audio.cmd` получает FFmpeg и Essentia.js по фиксированным адресам, проверяет SHA256/SHA512 скачанных архивов и размещает компоненты относительно EXE.
+В [релизе 2.0.2](https://github.com/esinkirill/speaker-studio/releases/tag/v2.0.2) модель, окружение Python для CPU и Node включены в архив. Для нативных библиотек Python/Torch нужен системный VC14 x64. `Prepare-Audio.cmd` получает FFmpeg и Essentia.js по фиксированным адресам, проверяет SHA256/SHA512 скачанных архивов и размещает компоненты относительно EXE.
 
 Python использует `python312._pth` с локальными `Lib/`, `DLLs/` и `site-packages/`. Модель находится в `models/muscriptor-small/`. Установка и сборка окружения описаны в [руководстве по модели](MODEL.md); версии компонентов — в [списке зависимостей](DEPENDENCIES.md).
 

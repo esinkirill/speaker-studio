@@ -16,6 +16,7 @@ namespace SpeakerPlayer
         private readonly Label selectionText = new Label();
         private readonly NumericUpDown glide = new NumericUpDown();
         private readonly ComboBox curveResolution = new ComboBox();
+        private readonly ContextMenuStrip midiPartMenu = new ContextMenuStrip();
         private Button partButton;
         private Form rhythmDialog;
         private long selectionPositionMs;
@@ -23,6 +24,7 @@ namespace SpeakerPlayer
 
         private void BuildReleaseInterface()
         {
+            Disposed += delegate { midiPartMenu.Dispose(); };
             TableLayoutPanel outer = Table(1, 3); outer.Padding = new Padding(16, 8, 16, 8);
             outer.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
             outer.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -186,14 +188,15 @@ namespace SpeakerPlayer
 
         private void ChooseMidiPart()
         {
-            if (busy || engine.IsPlaying || midiTrack.Items.Count < 3) return;
-            ContextMenuStrip menu = new ContextMenuStrip();
+            if (closing || IsDisposed || busy || engine.IsPlaying || midiTrack.Items.Count < 3 || midiPartMenu.Visible) return;
+            for (int index = midiPartMenu.Items.Count - 1; index >= 0; index--) midiPartMenu.Items[index].Dispose();
             for (int index = 0; index < midiTrack.Items.Count; index++) {
                 int choice = index; ToolStripMenuItem item = new ToolStripMenuItem(midiTrack.Items[index].ToString());
                 item.Checked = choice == midiTrack.SelectedIndex; item.Click += delegate { midiTrack.SelectedIndex = choice; };
-                menu.Items.Add(item);
+                midiPartMenu.Items.Add(item);
             }
-            menu.Closed += delegate { menu.Dispose(); }; menu.Show(partButton, new Point(0, partButton.Height));
+            // Closed runs inside WinForms' item-click handling; the menu stays alive until its owner is disposed.
+            midiPartMenu.Show(partButton, new Point(0, partButton.Height));
         }
     }
 }

@@ -23,7 +23,7 @@
 Результаты выполненных suites записываются в `speaker-player/build/tests/x64/test-results.json` или `speaker-player/build/tests/x86/test-results.json`.
 EXE и временные файлы каждого suite находятся рядом, в его подкаталоге. `ProcessTests` также пишет `ProcessTests/process-check.json` с результатом отмены.
 
-## Optional: график и piano roll
+## Optional: график, piano roll и меню выбора партии
 
 Нужна интерактивная Windows desktop session:
 
@@ -33,6 +33,10 @@ EXE и временные файлы каждого suite находятся р�
 
 [TimelineVisualChecks](TimelineVisualChecks.cs) проверяет выбор позиции, границы графика, DPI, подписи нот, паузы и кривую частоты.
 PNG сохраняются в `speaker-player/build/tests/x64/TimelineVisualChecks/`; при `-Platform x86` используется соответствующий каталог x86.
+
+[MenuLifecycleChecks](MenuLifecycleChecks.cs) проверяет меню выбора MIDI-партии: повторное открытие и выбор, отметку текущей партии, Escape, смену MIDI и закрытие/Dispose окна с открытым меню.
+Тест направляет Windows mouse messages только в окна собственной тестовой формы, проходя через WinForms `WndProc` и закрытие `ToolStripDropDown`. Исключения из message pump считаются ошибкой теста; системный курсор не перемещается, playback не запускается.
+Журнал событий и ошибок сохраняется в `speaker-player/build/tests/x64/MenuLifecycleChecks/menu-lifecycle-check.json`; для x86 меняется каталог разрядности.
 
 ## Optional: Python MIDI export
 

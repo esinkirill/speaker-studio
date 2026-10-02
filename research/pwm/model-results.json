@@ -1,0 +1,256 @@
+{
+  "model_only": true,
+  "hardware_io": false,
+  "machine_timing_measured": false,
+  "runtime": {
+    "python": "3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]",
+    "numpy": "2.3.5",
+    "reportlab": "4.4.9",
+    "platform": "Windows-11-10.0.26200-SP0"
+  },
+  "hypotheses": [
+    "Unipolar pulse mean equals duty, but same-frequency fundamental follows sin(pi*D).",
+    "A PWM duty stream can represent a bounded sum of two tones after an ideal low-pass filter.",
+    "Pulse-width clock quantization and chosen synthetic width errors add retained-band error."
+  ],
+  "parameters": {
+    "pit_clock_hz_assumed": 1193182.0,
+    "carrier_hz": 20000.0,
+    "carrier_period_us": 50.0,
+    "tone_hz": 500.0,
+    "modulation_amplitude": 0.45,
+    "dc_bias": 0.5,
+    "ideal_lowpass_cutoff_hz": 2000.0,
+    "duration_s": 0.1,
+    "carrier_frames": 2000,
+    "fourier_bin_hz": 10.0,
+    "jitter_seed": 29,
+    "alignment": "center-aligned pulse in each exact carrier frame"
+  },
+  "definitions": {
+    "lowpass": "Exact pulse Fourier integral, then discard frequencies above 2 kHz. Periodic extension, zero-phase non-causal ideal filter, no physical transfer function.",
+    "ac_rms": "sqrt(2*sum(abs(c_k)^2)), k>0 in retained passband, each signal DC removed.",
+    "nrmse_ac": "RMS(filtered PWM AC - target AC)/RMS(target AC); no amplitude/phase fitting. Includes in-band harmonic and non-harmonic error.",
+    "thd": "sqrt(A_1000^2 + A_1500^2 + A_2000^2)/A_500, coherent Fourier projections only; non-harmonic noise excluded. Not THD+N, not full-band THD.",
+    "jitter": "Same seeded independent Gaussian errors added to quantized pulse widths, RMS requested in microseconds; widths clipped to [0,50 us], frame centers exact. Synthetic, not measured Windows scheduling jitter.",
+    "pit_quantization": "Round each mathematical pulse width to nearest assumed PIT tick. Exact 20 kHz frame grid is retained as a modeling assumption, not a claim of hardware attainability.",
+    "pit_rate_table": "Tick budget in nominal frame. Counts 1..floor(ticks) ignore all I/O/setup overhead and describe resolution, not a ready PIT programming sequence. PIT count register value 0 means 65536, not zero-length pulse; zero/full duty need explicit boundary handling."
+  },
+  "pulse_duty_experiment": [
+    {
+      "duty": 0.25,
+      "mean": 0.25,
+      "fundamental_peak": 0.45015815807855314,
+      "fundamental_peak_analytic": 0.4501581580785531
+    },
+    {
+      "duty": 0.5,
+      "mean": 0.5,
+      "fundamental_peak": 0.6366197723675814,
+      "fundamental_peak_analytic": 0.6366197723675814
+    },
+    {
+      "duty": 0.75,
+      "mean": 0.75,
+      "fundamental_peak": 0.4501581580785531,
+      "fundamental_peak_analytic": 0.4501581580785531
+    }
+  ],
+  "single_tone_ideal_pwm": {
+    "dc_mean": 0.49999999999999994,
+    "ac_rms": 0.3179034300236121,
+    "desired_ac_rms": 0.31819805153394637,
+    "nrmse_ac": 0.0017309294186229243,
+    "peak_amplitudes": {
+      "500": 0.44958286103103684
+    },
+    "thd_harmonics_2_to_4": 0.0014631473605150797,
+    "nonharmonic_ac_rms_in_passband": 6.041730247851792e-15
+  },
+  "single_tone_second_order_sinc_peak_approximation": 0.44958275861862973,
+  "single_tone_pit_width_quantized_pwm": {
+    "dc_mean": 0.5011808760105332,
+    "ac_rms": 0.31868439999074377,
+    "desired_ac_rms": 0.31819805153394637,
+    "nrmse_ac": 0.008241351922945636,
+    "peak_amplitudes": {
+      "500": 0.45067304424323706
+    },
+    "thd_harmonics_2_to_4": 0.008092395390333166,
+    "nonharmonic_ac_rms_in_passband": 5.765175060482611e-15
+  },
+  "pulse_width_counts_at_20khz": {
+    "minimum": 3,
+    "maximum": 57,
+    "distinct_counts_for_this_500hz_wave": 20,
+    "tick_us": 0.838095110385507
+  },
+  "synthetic_width_jitter_scenarios": [
+    {
+      "dc_mean": 0.5011808760105332,
+      "ac_rms": 0.31868439999074377,
+      "desired_ac_rms": 0.31819805153394637,
+      "nrmse_ac": 0.008241351922945636,
+      "peak_amplitudes": {
+        "500": 0.45067304424323706
+      },
+      "thd_harmonics_2_to_4": 0.008092395390333166,
+      "nonharmonic_ac_rms_in_passband": 5.765175060482611e-15,
+      "width_error_requested_rms_us": 0.0,
+      "width_error_realized_rms_us": 0.0,
+      "clipped_pulses": 0
+    },
+    {
+      "dc_mean": 0.501151764541562,
+      "ac_rms": 0.3186744470116832,
+      "desired_ac_rms": 0.31819805153394637,
+      "nrmse_ac": 0.008772892907364984,
+      "peak_amplitudes": {
+        "500": 0.4506569191399861
+      },
+      "thd_harmonics_2_to_4": 0.008201199322558844,
+      "nonharmonic_ac_rms_in_passband": 0.0008624701864266289,
+      "width_error_requested_rms_us": 0.1,
+      "width_error_realized_rms_us": 0.10101776860363715,
+      "clipped_pulses": 0
+    },
+    {
+      "dc_mean": 0.5008897613208212,
+      "ac_rms": 0.31869166287339146,
+      "desired_ac_rms": 0.31819805153394637,
+      "nrmse_ac": 0.02885570094275872,
+      "peak_amplitudes": {
+        "500": 0.45051193451788407
+      },
+      "thd_harmonics_2_to_4": 0.009668768196128089,
+      "nonharmonic_ac_rms_in_passband": 0.00862481888712578,
+      "width_error_requested_rms_us": 1.0,
+      "width_error_realized_rms_us": 1.0101776860363716,
+      "clipped_pulses": 0
+    },
+    {
+      "dc_mean": 0.5008660994332796,
+      "ac_rms": 0.3134896527525856,
+      "desired_ac_rms": 0.31819805153394637,
+      "nrmse_ac": 0.1306243604574071,
+      "peak_amplitudes": {
+        "500": 0.4395692725085667
+      },
+      "thd_harmonics_2_to_4": 0.02238165019643422,
+      "nonharmonic_ac_rms_in_passband": 0.040209374322155086,
+      "width_error_requested_rms_us": 5.0,
+      "width_error_realized_rms_us": 4.69162259956441,
+      "clipped_pulses": 199
+    }
+  ],
+  "two_tone_ideal_pwm": {
+    "dc_mean": 0.5,
+    "ac_rms": 0.19978292583091842,
+    "desired_ac_rms": 0.2,
+    "nrmse_ac": 0.0018137113627099692,
+    "peak_amplitudes": {
+      "440": 0.19986626794163043,
+      "660": 0.19969916141639937
+    },
+    "duty_min": 0.11881809016963674,
+    "duty_max": 0.881181909830367,
+    "desired_tones_hz_peak": [
+      [
+        440.0,
+        0.2
+      ],
+      [
+        660.0,
+        0.2
+      ]
+    ]
+  },
+  "pit_rate_resolution": [
+    {
+      "rate_hz": 8000,
+      "frame_us": 125.0,
+      "nominal_frame_pit_ticks": 149.14775,
+      "frame_length_if_pit_clocked_ticks": [
+        149,
+        150
+      ],
+      "nonzero_counts_fitting_short_frame_ignoring_io_overhead": [
+        1,
+        149
+      ],
+      "nominal_duty_quantum_percentage_points": 0.6704760883084055,
+      "maximum_rounding_error_percentage_points": 0.3352380441542028,
+      "nyquist_hz": 4000.0
+    },
+    {
+      "rate_hz": 16000,
+      "frame_us": 62.5,
+      "nominal_frame_pit_ticks": 74.573875,
+      "frame_length_if_pit_clocked_ticks": [
+        74,
+        75
+      ],
+      "nonzero_counts_fitting_short_frame_ignoring_io_overhead": [
+        1,
+        74
+      ],
+      "nominal_duty_quantum_percentage_points": 1.340952176616811,
+      "maximum_rounding_error_percentage_points": 0.6704760883084055,
+      "nyquist_hz": 8000.0
+    },
+    {
+      "rate_hz": 32000,
+      "frame_us": 31.25,
+      "nominal_frame_pit_ticks": 37.2869375,
+      "frame_length_if_pit_clocked_ticks": [
+        37,
+        38
+      ],
+      "nonzero_counts_fitting_short_frame_ignoring_io_overhead": [
+        1,
+        37
+      ],
+      "nominal_duty_quantum_percentage_points": 2.681904353233622,
+      "maximum_rounding_error_percentage_points": 1.340952176616811,
+      "nyquist_hz": 16000.0
+    },
+    {
+      "rate_hz": 44100,
+      "frame_us": 22.675736961451246,
+      "nominal_frame_pit_ticks": 27.05628117913832,
+      "frame_length_if_pit_clocked_ticks": [
+        27,
+        28
+      ],
+      "nonzero_counts_fitting_short_frame_ignoring_io_overhead": [
+        1,
+        27
+      ],
+      "nominal_duty_quantum_percentage_points": 3.695999436800086,
+      "maximum_rounding_error_percentage_points": 1.847999718400043,
+      "nyquist_hz": 22050.0
+    }
+  ],
+  "checks": {
+    "pulse_mean_monotonic_25_50_75": true,
+    "pulse_fundamental_matches_analytic": true,
+    "duty_25_75_equal_fundamental": true,
+    "ideal_pwm_fundamental_matches_second_order_sinc_expansion": true,
+    "ideal_pwm_strongest_ac_line_is_500hz": true,
+    "chosen_jitter_cases_nrmse_increases": true,
+    "mixture_duty_within_0_and_1": true,
+    "mixture_two_strongest_ac_lines_are_440_660hz": true,
+    "all_numerical_checks_passed": true
+  },
+  "limitations": [
+    "No timing, driver, motherboard speaker, voltage, acoustic pressure, or loudness is measured.",
+    "Ideal LPF is an illustrative reconstruction assumption; real speaker response and carrier attenuation are unknown.",
+    "Width-error scenarios omit correlated jitter, edge asymmetry, late/missed frames, finite I/O duration, and OS stalls.",
+    "Resolution table does not claim those rates can be sustained by user-space InpOut or a PIT mode.",
+    "Fixed periodic finite-window noise and retained-band THD are defined analysis choices, not predicted hardware specifications."
+  ],
+  "rejected_initial_hypothesis": {
+    "hypothesis": "An ideal LPF makes this finite-carrier PWM reconstruct the target with less than 0.1% NRMSE.",
+    "result": "Rejected: single-tone NRMSE 0.1731%, two-tone NRMSE 0.1814%. Finite pulse widths introduce baseband harmonic/intermodulation error even before quantization and jitter."
+  }
+}
