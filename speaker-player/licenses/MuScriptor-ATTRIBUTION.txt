@@ -1,0 +1,35 @@
+MuScriptor small — Kyutai x Mirelo
+
+Source: https://github.com/muscriptor/muscriptor
+Source revision: 7f213afecf23bd6a1b8672aa223690ee9807cefb
+Source code license: MIT; see MuScriptor-MIT.txt.
+
+Model: https://huggingface.co/MuScriptor/muscriptor-small
+Model license: Creative Commons Attribution-NonCommercial 4.0 International
+https://creativecommons.org/licenses/by-nc/4.0/
+Full text: MuScriptor-model-CC-BY-NC-4.0.txt
+The model weights and configuration are distributed unchanged from the
+previously supplied and locally verified checkpoint.
+model.safetensors SHA256:
+bbd482c786b895cf7d8f44185073d951adae2ebb8a66f82ca84cd1f84569549c
+
+Speaker Studio uses the direct transcription model API locally on CPU.
+The application does not expose or bundle the MuScriptor web server or
+download/authentication workflow. Local paths to the included weights are
+passed explicitly; model downloads, uploads and account authentication are
+not performed by the converter.
+
+The model predicts note events and instrument groups. Conversion keeps
+polyphonic notes and instrument tracks. MIDI velocity is fixed at 64 because
+the model does not predict it. Padded model endings are clipped to the audio
+duration; overlapping repeats of the same instrument/pitch are shortened
+to the next attack. Original note timing is otherwise preserved, without
+beat quantization or added bar padding.
+
+Portable dependencies retain their individual notices in their .dist-info
+directories. Python's license is runtime/transcription/LICENSE.txt.
+PyTorch's licenses are in runtime/transcription/site-packages/
+torch-2.8.0+cpu.dist-info/licenses. Headers, static libraries and tests were
+excluded from the CPU runtime. The direct model path was tested with
+Python 3.12.14, torch 2.8.0+cpu and NumPy 1.26.4; this does not assert full
+compatibility with MuScriptor's separate web/CLI/beat-model package APIs.

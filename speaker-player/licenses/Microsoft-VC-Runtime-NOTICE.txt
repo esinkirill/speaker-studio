@@ -1,0 +1,25 @@
+Microsoft Visual C++ runtime libraries, copyright Microsoft Corporation.
+
+This private portable bundle uses unmodified Microsoft-signed x64 VC14 DLLs
+version 14.51.36231.0 beside runtime/transcription/python.exe:
+  msvcp140.dll
+  vcruntime140.dll
+  vcruntime140_1.dll
+
+The existing licensed workspace runtime supplied these files. No installer,
+registry modification or system-wide deployment is performed. These libraries
+are required by Python and the CPU PyTorch binaries; Windows 10/11 supply UCRT.
+
+Microsoft runtime license terms are reproduced in
+Microsoft-VC-Runtime-LICENSE.txt. They apply to personal installation/use.
+This notice does not grant independent rights to redistribute Microsoft's
+software to third parties. Public redistribution is governed by the applicable
+Visual Studio license and Distributable Code terms.
+
+Official license source (text extracted from the linked DOCX):
+https://visualstudio.microsoft.com/license-terms/vs2022-cruntime/
+https://visualstudio.microsoft.com/wp-content/uploads/2021/09/Visual-C-Runtime-2015-2022-License-1.docx
+
+Official app-local deployment documentation:
+https://learn.microsoft.com/en-us/cpp/windows/redistributing-visual-cpp-files?view=msvc-170
+https://learn.microsoft.com/en-us/cpp/windows/choosing-a-deployment-method?view=msvc-170

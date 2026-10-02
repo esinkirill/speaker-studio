@@ -1,0 +1,35 @@
+# Generated executable/test output
+build/
+speaker-player/build/
+speaker-player/SpeakerStudio.exe
+*.pdb
+*.obj
+*.suo
+*.user
+.vs/
+__pycache__/
+*.py[cod]
+.venv/
+
+# Optional runtime, drivers, model weights and media are local inputs
+speaker-player/runtime/
+speaker-player/models/
+speaker-player/assets/
+speaker-player/inpout32.dll
+speaker-player/inpoutx64.dll
+*.sys
+*.safetensors
+*.whl
+*.zip
+*.mp3
+*.wav
+*.flac
+
+# Local library, exports, preferences and credentials
+speaker-player/data/
+speaker-player/music/
+speaker-player/output/
+.env
+.env.*
+*.key
+*.pem
