@@ -3,6 +3,25 @@
 Дата подготовки публикации: 2026-10-02. Сборка исходников и тесты ниже выполнены
 на текущем Windows host. Отдельная чистая Windows 10/11 VM не запускалась.
 
+## Релиз 2.0.1 с моделью — E27
+
+Новый публичный комплект содержит Small weights и CPU runtime. Я проверил
+именно распакованный ZIP: подготовка получила pinned FFmpeg и Essentia,
+контрольные суммы совпали, decoding/WASM/model load прошли. Повторный запуск
+setup сохранил оба источника и пропустил уже подготовленные инструменты.
+
+Production EXE → C# bridge → локальная конвертация 2-секундного фрагмента:
+9 нот, 1 партия, BPM 143.5547; model load 5.21 с, inference 4.31 с,
+Python pipeline 10.59 с. Независимый Mido reader подтвердил 9 note-on,
+9 note-off и длительность 2.000108 с. Python запускался с ложными
+PYTHONHOME/PYTHONPATH и PATH только System32; VC14 DLL реально загружены
+из System32 согласно профилю prerequisite.
+
+Core source tests повторены после изменений: Timing 3677, Data90,
+Playback143, Process23 — PASS; cancellation 402 мс. Hash/size/ZIP CRC
+проверка распаковки прошла без несовпадений. Физический speaker, обычный
+audio playback и чистую VM в E27 не запускал.
+
 ## Повторяемые проверки исходников
 
 Из корня clone:

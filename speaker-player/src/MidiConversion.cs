@@ -30,7 +30,9 @@ namespace SpeakerPlayer
             get {
                 return File.Exists(Path.Combine(root, "runtime", "transcription", "python.exe")) &&
                     File.Exists(Path.Combine(root, "converter", "transcribe-midi.py")) &&
-                    File.Exists(Path.Combine(root, "models", "muscriptor-small", "model.safetensors"));
+                    File.Exists(Path.Combine(root, "models", "muscriptor-small", "model.safetensors")) &&
+                    File.Exists(Path.Combine(root, "models", "muscriptor-small", "config.json")) &&
+                    File.Exists(Path.Combine(root, "assets", "ffmpeg", "ffmpeg.exe"));
             }
         }
         public void Prepare() { runner.Prepare(); }
@@ -39,7 +41,7 @@ namespace SpeakerPlayer
 
         public MidiConversionResult Convert(string audioPath, string outputPath, Action<string> log)
         {
-            if (!RuntimeReady) throw new FileNotFoundException("В комплекте отсутствует локальная модель или portable runtime MuScriptor.");
+            if (!RuntimeReady) throw new FileNotFoundException("MP3 → MIDI не подготовлен. Запусти Prepare-Audio.cmd рядом с приложением; для сборки из исходников добавь runtime и MuScriptor Small по docs/MODEL.md.");
             audioPath = Path.GetFullPath(audioPath);
             outputPath = Path.GetFullPath(outputPath);
             if (!File.Exists(audioPath)) throw new FileNotFoundException("Аудиофайл не найден.", audioPath);

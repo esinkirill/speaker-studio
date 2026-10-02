@@ -1,8 +1,9 @@
-"""Stage a relocatable, offline Windows x64 MuScriptor-small CPU runtime.
+"""Stage an offline Windows x64 MuScriptor-small CPU runtime.
 
-Build-time inputs are explicit. This script copies already licensed model/source
-files and selected installed dependencies, and extracts an official CPU torch
-wheel. It performs no installation, authentication or model download.
+Copy prepared model/source files and installed dependencies, then extract an
+official CPU torch wheel. By default the target PC needs the official installed
+VC14 x64 redistributable; --vc-runtime selects the app-local profile instead.
+This script performs no installation, authentication or model download.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from zipfile import ZipFile
 
 SOURCE_REVISION = "7f213afecf23bd6a1b8672aa223690ee9807cefb"
 SMALL_SHA256 = "bbd482c786b895cf7d8f44185073d951adae2ebb8a66f82ca84cd1f84569549c"
+VC_RUNTIME_FILES = ("msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll")
 
 
 def sha256(path: Path) -> str:
@@ -37,17 +39,21 @@ def copy_tree(source: Path, destination: Path) -> None:
     shutil.copytree(source, destination, ignore=ignore)
 
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--python-root", type=Path, required=True)
     parser.add_argument("--site-packages", type=Path, required=True)
     parser.add_argument("--muscriptor-source", type=Path, required=True)
     parser.add_argument("--model-source", type=Path, required=True)
     parser.add_argument("--torch-wheel", type=Path, required=True)
-    parser.add_argument("--vc-runtime", type=Path, required=True,
-                        help="Licensed app-local x64 MSVC runtime directory (Microsoft-signed DLLs).")
+    parser.add_argument("--vc-runtime", type=Path,
+                        help="Optional app-local x64 VC14 directory. Default: installed system VC14 x64 redistributable.")
     parser.add_argument("--destination", type=Path, default=Path(__file__).resolve().parent.parent)
-    args = parser.parse_args()
+    return parser
+
+
+def main() -> None:
+    args = build_parser().parse_args()
     root = args.destination.resolve()
     runtime = root / "runtime" / "transcription"
     model = root / "models" / "muscriptor-small"
@@ -65,14 +71,14 @@ def main() -> None:
     runtime.mkdir(parents=True)
     for name in ["python.exe", "python3.dll", "python312.dll", "LICENSE.txt"]:
         shutil.copy2(args.python_root / name, runtime / name)
-    # Python and the CPU torch wheel require these VC14 dynamic libraries.
-    # Keep one compatible Microsoft-signed version app-local; relying on the
-    # development PC's System32 redistributable would break portable deployment.
-    for name in ["msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll"]:
-        shutil.copy2(args.vc_runtime / name, runtime / name)
-    licenses = Path(__file__).resolve().parent.parent / "licenses"
-    for name in ["Microsoft-VC-Runtime-LICENSE.txt", "Microsoft-VC-Runtime-NOTICE.txt"]:
-        shutil.copy2(licenses / name, runtime / name)
+    # Default profile uses the target PC's installed VC14 x64 redistributable.
+    # The explicit app-local profile keeps the previous DLL/notice copies.
+    if args.vc_runtime is not None:
+        for name in VC_RUNTIME_FILES:
+            shutil.copy2(args.vc_runtime / name, runtime / name)
+        licenses = Path(__file__).resolve().parent.parent / "licenses"
+        for name in ["Microsoft-VC-Runtime-LICENSE.txt", "Microsoft-VC-Runtime-NOTICE.txt"]:
+            shutil.copy2(licenses / name, runtime / name)
     copy_tree(args.python_root / "Lib", runtime / "Lib")
     copy_tree(args.python_root / "DLLs", runtime / "DLLs")
     (runtime / "python312._pth").write_text(".\nLib\nDLLs\nsite-packages\nimport site\n", encoding="ascii")
@@ -120,13 +126,18 @@ def main() -> None:
             if file.is_file():
                 entries.append({"path": file.relative_to(root).as_posix(), "bytes": file.stat().st_size, "sha256": sha256(file)})
     report = {"format": "speaker-transcription-runtime-manifest-v1", "sourceRevision": SOURCE_REVISION,
+              "profile": "app-local-vc14" if args.vc_runtime is not None else "system-vc14",
+              "prerequisites": [] if args.vc_runtime is not None else [
+                  {"component": "Microsoft Visual C++ Redistributable v14", "architecture": "x64", "deployment": "system"}],
               "pythonVersion": "3.12.14", "torchVersion": "2.8.0+cpu", "device": "cpu",
               "model": "MuScriptor small", "modelSha256": SMALL_SHA256,
               "modelLicense": "CC BY-NC 4.0", "modelLicenseUrl": "https://creativecommons.org/licenses/by-nc/4.0/",
               "sourceLicense": "MIT", "sourceUrl": "https://github.com/muscriptor/muscriptor",
               "torchWheelSha256": sha256(args.torch_wheel), "torchDevelopmentBytesExcluded": torch_pruned_bytes,
-              "msvcRuntimeFiles": ["msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll"],
-              "msvcRuntimeDeployment": "app-local", "msvcRuntimeLicense": "Microsoft-VC-Runtime-LICENSE.txt",
+              "msvcRuntimeRequiredFiles": list(VC_RUNTIME_FILES),
+              "msvcRuntimeFiles": list(VC_RUNTIME_FILES) if args.vc_runtime is not None else [],
+              "msvcRuntimeDeployment": "app-local" if args.vc_runtime is not None else "system",
+              "msvcRuntimeLicense": "Microsoft-VC-Runtime-LICENSE.txt" if args.vc_runtime is not None else None,
               "runtimeBytes": sum(e["bytes"] for e in entries if e["path"].startswith("runtime/")),
               "modelBytes": sum(e["bytes"] for e in entries if e["path"].startswith("models/")),
               "totalBytes": sum(e["bytes"] for e in entries), "fileCount": len(entries), "entries": entries}

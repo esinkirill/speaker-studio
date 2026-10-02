@@ -1,18 +1,18 @@
-# Архитектура Speaker Studio 2.0
+# Как устроен Speaker Studio
 
-Speaker Studio — Windows Forms приложение на C# 5 / .NET Framework 4. Оно соединяет нотный player, локальную аудиотранскрипцию и общий расчёт событий. В основе лежит простая последовательность `ToneRow`, а hardware output является одним из трёх backend.
+Я собрал Speaker Studio на C# 5 / .NET Framework 4 и Windows Forms. Мне нужен был небольшой Windows player, где можно выбрать файл, изменить тон и ритм, увидеть события и отправить их на speaker. Конвертацию аудио оставил отдельным процессам: Python отвечает за MuScriptor, Node — за анализ BPM.
 
-Документ описывает текущие исходники. Результаты исследования и пределы подтверждённой совместимости находятся в [RESEARCH.md](RESEARCH.md).
+Основная идея кода — сначала получить последовательность `ToneRow`, затем один раз рассчитать её pitch и время. График, playback и экспорт используют одинаковые правила. История опытов и результаты сравнения алгоритмов находятся в [RESEARCH.md](RESEARCH.md).
 
-## 1. Слои и поток данных
+## 1. Путь файла через приложение
 
 ```mermaid
 flowchart TB
-    UI[PlayerForm: библиотека, настройки, transport]
+    UI[PlayerForm: библиотека и transport]
     Audio[TranscriptionPanel]
     Bridge[MidiConversion / ChildProcessRunner]
     Node[Node + Essentia: BPM]
-    Python[Python + MuScriptor Small: события]
+    Python[Python + MuScriptor Small: ноты]
     Files[SequenceFiles: MIDI / CSV]
     Timing[SequenceTiming.Transform]
     Chart[FrequencyChart + LiveConsole]
@@ -25,39 +25,43 @@ flowchart TB
     UI --> Files --> Timing
     Timing --> Chart
     Timing --> Engine --> Backend
-    Timing --> CSV[Экспорт обработанного CSV]
+    Timing --> CSV[Обработанный CSV]
 ```
 
-Распознавание аудио не выполняется в playback thread. GUI передаёт его отдельным процессам; player получает уже готовые события. Это позволяет независимо менять converter, mono selector, временные эффекты и backend.
+MIDI и CSV сразу поступают в player. MP3/WAV сначала превращаются в полный MIDI с партиями. Из него выбирается один голос, а уже его события проходят через `SequenceTiming`.
 
-## 2. Карта 18 production исходников
+Так я могу менять transcriber, mono selector или output отдельно. Распознавание не тормозит playback thread: GUI запускает converter в фоне и получает готовый файл.
 
-Все перечисленные файлы находятся в `speaker-player/src`.
+## 2. Где искать код
 
-| Файл | Ответственность |
+В `speaker-player/src` — 18 production файлов. Форму я разделил через `partial` по функциям: состояние плеера у этих частей общее.
+
+| Файл | Что в нём находится |
 | --- | --- |
-| [Program.cs](../speaker-player/src/Program.cs) | STA entry point, базовая папка приложения, запуск формы |
+| [Program.cs](../speaker-player/src/Program.cs) | STA entry point, базовая папка и запуск формы |
 | [AssemblyInfo.cs](../speaker-player/src/AssemblyInfo.cs) | Product/version metadata |
-| [PlayerForm.cs](../speaker-player/src/PlayerForm.cs) | Координация загрузки, настроек, playback, экспорта и UAC restart |
-| [PlayerStudio.cs](../speaker-player/src/PlayerStudio.cs) | Две вкладки, компактные настройки, transport, seek, окно ритма и подсказки |
-| [PlayerLibrary.cs](../speaker-player/src/PlayerLibrary.cs) | Поиск, фильтры, выбор и удаление записей библиотеки |
-| [PlayerRhythm.cs](../speaker-player/src/PlayerRhythm.cs) | BPM/phase, musical grid, локальный анализ ритма и его применение |
-| [LibraryStore.cs](../speaker-player/src/LibraryStore.cs) | Persistent список путей к файлам |
-| [GeneratedFiles.cs](../speaker-player/src/GeneratedFiles.cs) | Читаемые уникальные имена результатов |
-| [TranscriptionPanel.cs](../speaker-player/src/TranscriptionPanel.cs) | UI конвертации, progress/status, отмена и событие нового MIDI |
-| [MidiConversion.cs](../speaker-player/src/MidiConversion.cs) | Запуск анализа BPM и аудиотранскрипции, чтение отчёта, валидация MIDI |
-| [ChildProcessRunner.cs](../speaker-player/src/ChildProcessRunner.cs) | Quoting, redirect stdout/stderr, cancellation и завершение дерева процессов |
-| [RhythmAnalysis.cs](../speaker-player/src/RhythmAnalysis.cs) | Проверка rhythm JSON, BPM, beat positions, fit и residuals |
-| [SequenceData.cs](../speaker-player/src/SequenceData.cs) | `ToneRow`, CSV reader/writer и Standard MIDI parser |
-| [RhythmSettings.cs](../speaker-player/src/RhythmSettings.cs) | Параметры Original/Quantize/Chop и glide |
-| [SequenceTiming.cs](../speaker-player/src/SequenceTiming.cs) | Единая подготовка pitch и временных событий |
-| [Playback.cs](../speaker-player/src/Playback.cs) | Playback session, monotonic clock, seek/pause/loop и outputs |
-| [PlayerVisuals.cs](../speaker-player/src/PlayerVisuals.cs) | Piano roll, frequency timeline, selection и playhead |
-| [LiveConsole.cs](../speaker-player/src/LiveConsole.cs) | Ограниченный журнал с прокруткой, копированием и очисткой |
+| [PlayerForm.cs](../speaker-player/src/PlayerForm.cs) | Загрузка, настройки, playback, экспорт и UAC restart |
+| [PlayerStudio.cs](../speaker-player/src/PlayerStudio.cs) | Вкладки, transport, seek, окно ритма и подсказки |
+| [PlayerLibrary.cs](../speaker-player/src/PlayerLibrary.cs) | Поиск, фильтры, выбор и удаление записей |
+| [PlayerRhythm.cs](../speaker-player/src/PlayerRhythm.cs) | BPM, phase, сетка и применение аудиоанализа |
+| [LibraryStore.cs](../speaker-player/src/LibraryStore.cs) | Сохранение списка путей к файлам |
+| [GeneratedFiles.cs](../speaker-player/src/GeneratedFiles.cs) | Понятные имена результатов и числовые суффиксы при совпадении |
+| [TranscriptionPanel.cs](../speaker-player/src/TranscriptionPanel.cs) | UI конвертации, status/progress и отмена |
+| [MidiConversion.cs](../speaker-player/src/MidiConversion.cs) | Цепочка BPM → транскрипция, чтение report и проверка MIDI |
+| [ChildProcessRunner.cs](../speaker-player/src/ChildProcessRunner.cs) | Аргументы процессов, stdout/stderr, cancellation дерева процессов |
+| [RhythmAnalysis.cs](../speaker-player/src/RhythmAnalysis.cs) | Чтение rhythm JSON, BPM, долей, fit и residuals |
+| [SequenceData.cs](../speaker-player/src/SequenceData.cs) | `ToneRow`, CSV и Standard MIDI parser |
+| [RhythmSettings.cs](../speaker-player/src/RhythmSettings.cs) | Original/Quantize/Chop и параметры glide |
+| [SequenceTiming.cs](../speaker-player/src/SequenceTiming.cs) | Подготовка высот и временных событий |
+| [Playback.cs](../speaker-player/src/Playback.cs) | Session, clock, seek/pause/loop и output backends |
+| [PlayerVisuals.cs](../speaker-player/src/PlayerVisuals.cs) | Piano roll, график частот, marker и playhead |
+| [LiveConsole.cs](../speaker-player/src/LiveConsole.cs) | Журнал с прокруткой, копированием и очисткой |
 
-Части `PlayerForm` разделены по функциям через `partial`, а не через разные независимые состояния плеера. Новая настройка должна попасть в `Settings()`, shared transform, восстановление после UAC и экспорт, если она влияет на события.
+Для новой настройки я проверяю четыре места: `Settings()`, общий transform, восстановление после UAC и processed export. Это помогает не забыть, например, glide при повторном запуске elevated приложения.
 
-## 3. Контракт данных
+## 3. Маленький контракт между слоями
+
+Speaker-последовательность описывает три числа:
 
 ```csharp
 public sealed class ToneRow
@@ -68,15 +72,15 @@ public sealed class ToneRow
 }
 ```
 
-| Поле | Значение |
+| Поле | Как player его читает |
 | --- | --- |
-| `Frequency > 0` | Удерживать заданную частоту в течение `DurationMs` |
+| `Frequency > 0` | Держать тон в течение `DurationMs` |
 | `Frequency == 0` | REST длительностью `DurationMs` |
-| `PauseMs` | Дополнительная тишина после этого интервала |
+| `PauseMs` | Тишина после интервала |
 
-Все значения неотрицательны. Полная длительность — сумма `DurationMs + PauseMs` всех строк. REST и pause могут быть представлены разными полями, но при подготовке playback оба становятся тихими сегментами.
+Значения неотрицательны. Общая длина — сумма `DurationMs + PauseMs`. REST и pause записываются по-разному, но при playback оба становятся тихими сегментами.
 
-CSV имеет заголовок `frequency;duration;pause`. Writer использует `;`, чтобы при стандартном открытии в соответствующей локали Excel поля находились в трёх столбцах. Reader также понимает запятую и табуляцию и проверяет значения. Это формат speaker player; он отличается от CSV полного списка MIDI events.
+CSV writer использует `;`, чтобы поля удобно открывались в трёх столбцах Excel в соответствующей локали. Reader понимает также запятую и табуляцию, проверяет заголовок и значения.
 
 ```csv
 frequency;duration;pause
@@ -85,43 +89,45 @@ frequency;duration;pause
 0;100;0
 ```
 
-### MIDI → mono
+Это формат событий для speaker. Полный MIDI содержит больше информации: одновременные ноты, партии и tempo map.
 
-`SequenceFiles` читает SMF format 0/1 с PPQN timing, running status, tempo events и `note-on velocity=0` как `note-off`. SMPTE time division не поддерживается. Tempo map переводит ticks в абсолютные миллисекунды.
+### Как я читаю MIDI
 
-Активные голоса учитываются по pitch и channel. Верхняя активная нота выбранных музыкальных дорожек определяет текущую частоту:
+`SequenceFiles` поддерживает SMF format 0/1 с PPQN timing, running status, tempo events и `note-on velocity=0` как `note-off`. Tempo map переводит ticks в абсолютные миллисекунды. SMPTE time division пока не поддерживается.
+
+Активные голоса учитываются по pitch и channel. В speaker-проекцию идёт верхняя активная нота выбранных музыкальных дорожек:
 
 ```text
 frequency = round(440 × 2^((midiNote − 69) / 12))
 ```
 
-Channel 10 percussion не попадает в speaker sequence. Повторные атаки выбранной ноты сохраняются; посторонний low-pitch event или tempo event не дробит неизменившийся sustain. Pitch bend, sustain/CC и выразительная динамика не моделируются аппаратным нотным выходом.
+Я сохраняю повторную атаку выбранной высоты. Событие более низкой ноты или смена tempo не дробят неизменившийся sustain. Channel 10 percussion исключается; pitch bend, sustain/CC и динамика не моделируются нотным hardware output.
 
-`MidiTempoInfo.AudioBarOffsetSeconds` сохраняет optional `muscriptor:bar_offset` для сопоставления с аудио. Parser не удаляет этот участок таймлайна автоматически. В новом production converter bar offset равен нулю: исходные времена сохраняются без искусственного тактового padding.
+Optional `muscriptor:bar_offset` попадает в `MidiTempoInfo.AudioBarOffsetSeconds`. Это помогает сопоставлять внешние MIDI с аудио. Parser не удаляет начальную тишину автоматически. Мой production converter пишет offset 0 и сохраняет времена без дополнительного тактового padding.
 
-## 4. Единая подготовка последовательности
+## 4. Один transform для звука, картинки и файла
 
-Основной API:
+API подготовки:
 
 ```csharp
 SequenceTiming.Transform(rows, transpose, speed, noteGapMs, rhythm)
 ```
 
-Метод создаёт новую последовательность и не изменяет входные `ToneRow`. Одни и те же правила используются для chart, playback и processed CSV, чтобы разные части UI не рассчитывали свою длительность.
+Метод возвращает новые строки, сохраняя входные `ToneRow`. Я оставил расчёт в одном месте, потому что до этого отдельные правила пауз и темпа легко расходились между графиком и player.
 
-Порядок обработки:
+Порядок операций имеет значение:
 
-1. Проверить параметры и скопировать исходные строки.
-2. Изменить pitch независимо от скорости.
-3. При Quantize мягко скорректировать абсолютные внутренние границы.
-4. Масштабировать cumulative boundaries и округлить их.
-5. Вырезать note gap из конца звучащих исходных нот.
-6. Добавить glide только между непосредственно соседними звучащими нотами.
-7. При Chop пересечь полученные звучащие интервалы с абсолютной сеткой gate.
+1. Проверить параметры и скопировать вход.
+2. Изменить pitch независимо от времени.
+3. При Quantize подвинуть абсолютные внутренние границы.
+4. Масштабировать накопленные границы и округлить их.
+5. Вырезать gap из конца звучащих исходных нот.
+6. Сформировать glide между соседними звучащими нотами.
+7. При Chop пересечь результат с абсолютной сеткой gate.
 
-### Округление без накопления ошибки
+### Округлять границы, а не каждую длительность
 
-Если отдельно округлять длительность каждой строки, ошибки на длинном файле складываются. Поэтому сначала преобразуются накопленные границы:
+На коротком примере разницы почти нет. На тысячах строк отдельные округления складываются, поэтому я считаю так:
 
 ```text
 newBoundary[k] = round(sourceBoundary[k] / speed)
@@ -129,48 +135,52 @@ newDuration[k] = newBoundary[k+1] − newBoundary[k]
 newTotal = round(sourceTotal / speed)
 ```
 
-Начало и конец общего таймлайна не сдвигаются при Quantize. Внутренняя граница движется на половину расстояния до ближайшей клетки; порядок остаётся монотонным. Границы REST могут переместиться, но REST не заменяется звучащей нотой.
+Quantize не сдвигает начало и конец трека. Внутренняя граница проходит 50% пути к ближайшей клетке; порядок остаётся монотонным. REST сохраняет свой тип, но его границы и длина могут измениться.
 
-### Фаза и musical grid
+### BPM и phase остаются в исходной системе времени
 
-`PartsPerBeat` принимает 1, 2, 3, 4, 6, 8, 12 или 16. BPM относится к четверти; триольные варианты задаются 3/6/12 частями. `PhaseMs` находится в исходном таймлайне; при воспроизведении и шаг, и фаза делятся на `speed`.
+BPM относится к четверти. `PartsPerBeat` принимает 1, 2, 3, 4, 6, 8, 12 или 16. `PhaseMs` — фаза в исходном таймлайне; при playback фаза и шаг делятся на `speed`.
 
-GUI отключает ровную сетку при неизвестном BPM, variable tempo или шаге меньше 1 мс. Обычное масштабирование скорости продолжает сохранять относительные изменения tempo map.
+```text
+stepMs = 60000 / sourceBpm / partsPerBeat / speed
+```
 
-Source BPM берётся из MIDI tempo map, CSV sidecar или аудиоанализа; его можно задать вручную, когда значение неизвестно. Tap при неизвестном BPM устанавливает source BPM, а при известном — меняет скорость относительно него.
+Source BPM берётся из MIDI tempo map, CSV sidecar или аудиоанализа. Если значение неизвестно, его можно задать вручную. Tap при неизвестном BPM задаёт source BPM; при известном меняет скорость относительно него.
 
-### Note gap, glide и Chop
+Ровную сетку GUI отключает при unknown BPM, variable tempo или шаге меньше 1 мс. При этом обычное изменение скорости продолжает масштабировать исходный ритм вместе со сменами tempo.
 
-Gap ограничивается `D−1` для непустой звучащей ноты. Он уменьшает звук и увеличивает pause на ту же величину. Исходный REST не получает новый gap.
+### Gap, glide и Chop
 
-`GlideMs` измеряется в миллисекундах уже масштабированного playback. Переход занимает начало следующей ноты, не удлиняя её. Частоты вычисляются через log interpolation и cubic smoothstep; первый и последний шаги соответствуют соседним высотам. Наличие настоящей паузы или gap запрещает переход через неё.
+Gap после speed ограничен `D−1` для непустой звучащей ноты. Он уменьшает звук и увеличивает pause на ту же величину; REST его не получает.
 
-Glide применяется **до** Chop: искусственные gate-разрывы не превращаются в новые музыкальные атаки для portamento. Chop работает только внутри звучащих интервалов, с сохранением исходных quiet intervals. Заполнение 90% обозначает время звучания клетки, а не voltage.
+`GlideMs` — время перехода уже после speed. Переход занимает начало следующей ноты. Частоты идут по log interpolation и cubic smoothstep `3u²−2u³`; первый и последний шаги соответствуют соседним высотам. Настройка разрешения — 5/10/20/50 мс.
 
-Обработки glide/chop ограничивают рост результата 200000 участками. При слишком мелкой сетке выдаётся понятная ошибка вместо создания огромного списка.
+Настоящая пауза, REST или gap запрещают glide через эту границу. Я применяю glide до Chop, чтобы искусственный gate-разрыв не становился поводом для нового portamento.
 
-## 5. Playback, pause и seek
+Chop сохраняет исходные тихие интервалы и работает внутри звучащих. «Звук 90%» задаёт долю звучания клетки. Результат glide/chop ограничен 200000 участками: слишком мелкая сетка заканчивается понятной ошибкой, а не огромным списком в памяти.
 
-При `Play` engine копирует настройки и подготовленные события в session snapshot. Строки превращаются в `PreparedSegment` с абсолютными `Start`/`End`. Быстрый поиск позиции использует отсортированный таймлайн.
+## 5. Playback: общий clock и перемотка
 
-`ActiveClock` построен на `Stopwatch`: он хранит origin, position offset и исключённое время пользовательской паузы. После seek origin пересчитывается; paused state сохраняется. Один clock обслуживает весь playback, а ожидание для каждого сегмента определяется оставшимся временем до абсолютного конца.
+При `Play` engine делает snapshot настроек и подготовленных событий. `PreparedSegment` хранит абсолютные `Start`/`End`, а позиция ищется в отсортированном таймлайне.
 
-Это предотвращает систематическое прибавление затрат output/observer к каждой ноте. Но `Stopwatch` измеряет время, а не гарантирует точность Windows scheduling. Поздно начавшийся короткий сегмент может получить меньше фактического звучания или быть пропущен. [Microsoft: high-resolution timestamps](https://learn.microsoft.com/en-us/windows/win32/sysinfo/acquiring-high-resolution-time-stamps), [Sleep и scheduling](https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-sleep).
+`ActiveClock` использует `Stopwatch`, origin и position offset. Пользовательская pause исключается из времени playback. Seek пересчитывает origin и сохраняет paused state. Для каждого сегмента worker ждёт оставшееся время до его абсолютного конца.
 
-Контракт перемотки:
+Это убирает накопление расходов output и observer на каждой ноте. Scheduling Windows всё ещё может опоздать, особенно на коротких сегментах. [Microsoft о high-resolution timestamps](https://learn.microsoft.com/en-us/windows/win32/sysinfo/acquiring-high-resolution-time-stamps), [Sleep](https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-sleep).
 
-| Случай | Поведение |
+| Действие | Результат |
 | --- | --- |
-| Start внутри tone | Играть только оставшуюся часть |
+| Start внутри tone | Играть оставшуюся часть |
 | Start внутри REST/pause | Дождаться конца тихого интервала |
-| Seek во время playback | Сохранить backend и session, перейти к выбранному месту |
-| Seek во время pause | Сохранить pause, обновить позицию |
+| Seek во время playback | Перейти к позиции, сохранив backend и session |
+| Seek во время pause | Обновить позицию, сохранив pause |
 | Start в конце | Завершиться без открытия output |
 | Loop после выбранного хвоста | Следующий проход начинается с нуля |
 
-### Почему нужны два идентификатора
+### Гонка, которую добавил seek
 
-`SessionId` отличает один запуск от другого. `PositionRevision` отличает позиции внутри той же session: seek и loop меняют revision. Поскольку `BeginInvoke` ставит callback в UI очередь, его актуальность проверяется **при выполнении в UI thread**, а не только до отправки.
+`BeginInvoke` ставит progress в UI очередь. Между отправкой и выполнением callback пользователь может уже перемотать трек. Поэтому одного `SessionId` оказалось мало: session прежняя, а позиция новая.
+
+Я добавил `PositionRevision`. Seek и loop меняют revision; при выполнении UI callback проверяются оба значения.
 
 ```mermaid
 sequenceDiagram
@@ -180,89 +190,106 @@ sequenceDiagram
     W->>Q: Progress(session, revision)
     U->>W: Seek(new position)
     W-->>U: revision incremented
-    Q->>U: Execute queued callback
-    U->>U: Check session AND revision
+    Q->>U: Execute callback
+    U->>U: Check session and revision
     U->>U: Drop stale progress
 ```
 
-Completion также проверяется по session, чтобы конец старого worker не завершил новый playback в UI. Cancellation и wake-up используют session state и события; завершение output проходит через `finally`/`Dispose`.
+Completion тоже проверяется по session, чтобы старый worker не завершил новый запуск в GUI. Cancellation будит worker через session state и события; output закрывается через `finally`/`Dispose`.
 
-## 6. Output backends
+## 6. Три выхода, один transport
 
-| Backend | Реализация | Для чего используется |
+| Backend | Реализация | Зачем он мне |
 | --- | --- | --- |
 | Speaker | `SpeakerOutput`: InpOut, PIT channel 2, gate | Физическая пищалка |
-| Preview | `WaveOutput`: Windows waveOut | Проверка нот через обычное аудиоустройство |
-| Visual | `SilentOutput` | Проверка транспорта и диаграммы без звука и DLL |
+| Preview | `WaveOutput`: Windows waveOut | Нотная линия через обычное аудиоустройство |
+| Visual | `SilentOutput` | Проверка player и графика без звука и DLL |
 
-Для Speaker выбирается InpOut DLL по разрядности текущего процесса, разрешаются exports `Inp32`, `Out32`, `IsInpOutDriverOpen`. Backend открывается при playback, а не при запуске GUI. Выбор native directory привязан к базе приложения.
+Speaker выбирает DLL по разрядности процесса и получает exports `Inp32`, `Out32`, `IsInpOutDriverOpen`. Native directory находится относительно базы приложения. Backend открывается при Play, поэтому Visual не требует обращения к driver.
 
-UAC restart сохраняет пользовательские параметры и позицию. Новый elevated процесс не начинает воспроизведение автоматически. Возможность загрузить DLL, прочитать порт или открыть driver сама по себе не подтверждает физический звук.
+Для физического режима нужен elevated процесс. При UAC restart я сохраняю параметры и позицию, а воспроизведение пользователь запускает повторно. Чтение порта и открытый driver проверяют доступ; наличие физического звука проверяется на самом speaker.
 
-Piano roll и frequency curve — разные представления подготовленных событий. Они не являются feedback от speaker и не измеряют аппаратный timing, напряжение или громкость.
+Piano roll и frequency curve строятся из подготовленных событий. Это помогает увидеть, что именно player собирается отправить, но напряжение и акустический результат график не измеряет.
 
-## 7. Локальная MP3 → MIDI цепочка
+## 7. MP3 → MIDI в отдельных процессах
 
-Актуальны два scripts:
+У converter два entry points:
 
-| Script | Вход / выход |
+| Script | Что делает |
 | --- | --- |
 | [analyze-rhythm.cjs](../speaker-player/converter/analyze-rhythm.cjs) | Audio → mono PCM 44100 Hz → Essentia BPM / beats / fit JSON |
-| [transcribe-midi.py](../speaker-player/converter/transcribe-midi.py) | Audio → mono PCM 16000 Hz → MuScriptor events → polyphonic MIDI и report |
+| [transcribe-midi.py](../speaker-player/converter/transcribe-midi.py) | Audio → mono PCM 16000 Hz → MuScriptor events → MIDI и report |
 
-`MidiConversion` сначала пробует BPM analysis. Ошибка ритма не запрещает транскрипцию: при неизвестном BPM nominal 120 используется лишь для tick conversion, а metadata сохраняет unknown status. GUI не показывает такой clock reference как измеренный source BPM.
+`MidiConversion` сначала пробует определить BPM. Если анализ ритма не удался, транскрипция продолжается. Nominal 120 тогда служит только reference для записи ticks; metadata остаётся unknown, GUI не показывает его как найденный source BPM.
 
-Python entry point использует local safetensors/config, CPU inference, offline flags и исключает implicit account token. При запуске передаются `-I -B`: изоляция interpreter и запрет новых bytecode caches. Конвертация не запускает playback.
+Python использует local safetensors/config и CPU inference. Offline flags и отключение implicit account token оставляют загрузку модели локальной. `-I -B` изолируют interpreter и запрещают новые bytecode caches. Converter сам не запускает звук.
 
-События модели обрезаются по реальной длительности аудио; наложения одной высоты в одной инструментальной партии устраняются нормализацией. Полный MIDI сохраняет партии и одновременные высоты. Если тональных групп больше 15, MIDI channels могут использоваться повторно; это ограничение формата экспорта, а не дополнительные независимые MIDI каналы.
+События модели обрезаются по длительности аудио. Наложения одной высоты в одной инструментальной партии устраняются нормализацией. Полный MIDI сохраняет одновременные высоты и партии; если тональных групп больше 15, channels используются повторно.
 
-### Процессы и результаты
+### Отмена, аргументы и готовый результат
 
-`TranscriptionPanel` запускает bridge в `ThreadPool` и переводит status/progress обратно через UI dispatch. `ChildProcessRunner` использует structured argument construction/quoting, redirect stdout/stderr и cancellation всего созданного process tree. Подготовка cancellation выполняется до постановки worker в очередь.
+`TranscriptionPanel` запускает bridge через `ThreadPool`, а status/progress возвращает в UI thread. Подготовка cancellation происходит до постановки worker в очередь. `ChildProcessRunner` собирает и экранирует аргументы, читает stdout/stderr и завершает созданное дерево процессов при отмене.
 
-Результат принимается после проверки exit code, схемы report, ожидаемого output path, существования MIDI и чтения реальным player parser. Успешный exit code без корректного файла не считается завершённой конвертацией.
+Я проверяю не только exit code: нужны корректная схема report, ожидаемый output path, сам MIDI и успешное чтение player parser. Это ловит случай «процесс завершился, но результат использовать нельзя».
 
-Имя результата выбирается с suffix при совпадении. Python создаёт report/MIDI эксклюзивно и отвергает overwrite, включая совпадение с исходником. Это защищает от гонки двух конвертаций за одно имя; глобальная очередь нескольких экземпляров приложения не реализована.
+Имена результатов получают числовой suffix при совпадении. Python создаёт MIDI/report эксклюзивно и отвергает overwrite, в том числе совпадение с исходником. Так две конвертации не занимают одно имя; общая очередь нескольких экземпляров приложения пока не нужна и не реализована.
 
-## 8. Библиотека и processed export
+## 8. Библиотека и два вида CSV
 
-`data/library.json` хранит список путей зарегистрированных файлов; настройки эффектов в нём не сохраняются. Пути внутри базы приложения сохраняются относительно неё; внешние пути остаются внешними. Удаление записи не удаляет MIDI/CSV/audio с диска.
+`data/library.json` хранит пути зарегистрированных файлов. Внутренние пути относительны базе приложения, внешние остаются внешними. Удалить запись из библиотеки можно, сохранив файл на диске. Эффекты в library не сохраняются.
 
-Сохранение library использует временный файл и `File.Replace` либо `File.Move`. При ошибке записи откатывается соответствующее изменение in-memory списка. Это приложение с локальным состоянием; одновременная согласованная запись библиотеки из нескольких экземпляров не гарантируется.
+Запись библиотеки использует временный файл и `File.Replace` либо `File.Move`. Если запись не удалась, соответствующее изменение списка в памяти откатывается. Одновременную согласованную запись из нескольких экземпляров я пока не добавлял.
 
-«Создать CSV» сохраняет исходную mono-проекцию MIDI. «Сохранить CSV» вызывает общий transform и записывает уже применённые pitch/speed/gap/rhythm/glide. Экспорт запрещает заменять выбранный исходный файл.
+С CSV есть важное различие:
 
-Дополнительные текстовые sidecars дописывают суффикс к полному имени CSV:
+- «Создать CSV» сохраняет исходную mono-проекцию MIDI.
+- «Сохранить CSV» вызывает общий transform и записывает применённые pitch/speed/gap/rhythm/glide.
 
-| Суффикс | Содержимое |
+Экспорт не позволяет заменить выбранный исходный файл. Processed CSV при загрузке сбрасывает эффекты в neutral settings — иначе они применились бы дважды.
+
+Sidecars дописывают суффикс к полному имени CSV:
+
+| Суффикс | Данные |
 | --- | --- |
-| `.bpm.txt` | Исходный или уже масштабированный BPM |
+| `.bpm.txt` | Исходный либо уже масштабированный BPM |
 | `.bpm-varies.txt` | Отметка о переменном tempo map |
 | `.grid-phase.txt` | Фаза в миллисекундах |
 | `.audio-offset.txt` | Optional audio offset в секундах |
-| `.processed.txt` | Эффекты уже применены к значениям CSV |
+| `.processed.txt` | Эффекты уже применены |
 
-Отчёты аудиоконвертации и анализа ритма — отдельные JSON с заменой расширения на `.transcription.json` и `.rhythm.json`. При загрузке processed CSV эффекты сбрасываются в neutral settings, чтобы не применить их дважды.
+JSON reports используют замену расширения на `.transcription.json` и `.rhythm.json`. Сами CSV остаются простыми и редактируемыми вручную; формат подробнее описан в [CSV_FORMAT.md](CSV_FORMAT.md).
 
-## 9. Portable runtime и воспроизводимость
+## 9. Что я фиксирую для переносимого запуска
 
-Локально проверенный комплект содержит Python 3.12.14, torch 2.8.0+cpu, NumPy 1.26.4, Node, Essentia, FFmpeg и app-local MSVC 14.51.36231.0. Model source revision и SHA256 фиксируются manifest. Builder копирует явные build inputs; его наличие не означает автоматическое скачивание или принятие model terms.
+В локальном комплекте E25 я проверил Python 3.12.14, torch 2.8.0+cpu, NumPy 1.26.4, Node, Essentia, FFmpeg и app-local MSVC 14.51.36231.0. Его runtime/model manifest содержал 5060 entries. Это тот профиль, для которого в исследовании приведены проверки локальной загрузки всех VC14 DLL.
 
-Изоляция окружения не доказывает DLL closure. После обнаружения скрытого системного `msvcp140.dll` проверили ordinary/delay imports и фактические пути всех VC14 modules. Публичный `torch.testing` и package resources сохраняются как часть проверенного dependency component; удалять их только по имени папки нельзя.
+В [публичном релизе 2.0.1](https://github.com/esinkirill/speaker-studio/releases/tag/v2.0.1) модель, Python CPU runtime и Node включены в архив; VC14 x64 устанавливается системным официальным installer. `Prepare-Audio.cmd` получает FFmpeg и Essentia.js по фиксированным адресам, проверяет SHA256/SHA512 скачанных архивов и размещает компоненты относительно EXE. Порядок подготовки — в [MODEL.md](MODEL.md).
 
-Проверка ZIP/folder hash доказывает сохранность состава. Load smoke доказывает запуск на проверенном host. Inference/MIDI reader подтверждают программную цепочку. Ни одна из этих проверок отдельно не подтверждает акустическую точность или совместимость каждой платы.
+[Builder](../speaker-player/scripts/build-transcription-runtime.py) по умолчанию записывает профиль `system-vc14` и системный prerequisite в manifest. Аргумент `--vc-runtime` сохраняет вариант `app-local-vc14` с DLL и notices. Manifest различает необходимые и вложенные VC DLL, а размеры и количество файлов считает из реальных entries. Source revision и SHA256 модели остаются зафиксированными; builder использует подготовленные inputs и сам модель не скачивает.
 
-Репозиторий исходников и большой локальный portable комплект — разные артефакты. Пользовательские песни и необработанные private logs не являются частью публичной архитектурной документации. У model, InpOut, FFmpeg, Essentia, Python, Node и MSVC сохраняются собственные licenses/notices.
+После истории с системным `msvcp140.dll` я отдельно проверяю native imports и реальные пути загруженных VC14 modules. Одного `PATH` для Windows DLL closure недостаточно. Package resources и даже публичный `torch.testing` сохраняются, если от них зависит проверенная цепочка import: название папки не определяет, нужна ли она runtime.
 
-## 10. Где расширять приложение
+Для себя я разделил проверки по вопросу, на который они отвечают:
 
-| Задача | Точка расширения | Что проверить |
+| Проверка | Что она проверяет |
+| --- | --- |
+| SHA256/ZIP CRC | Состав файлов сохранился при копировании и упаковке |
+| Load smoke | Native components загрузились на проверяемом host |
+| CPU inference + MIDI reader | Converter создал читаемый результат |
+| Visual timing/seek tests | Transport работает на подготовленном таймлайне |
+| Опыт на плате и прослушивание | Физический звук и музыкальный результат |
+
+В Git лежат исходники и synthetic tests, а модель с runtime распространяется отдельным Release asset. Зависимости перечислены в [DEPENDENCIES.md](DEPENDENCIES.md); команды проверки — в [VERIFICATION.md](VERIFICATION.md).
+
+## 10. Куда добавлять следующую функцию
+
+| Идея | Место в коде | Что я буду проверять |
 | --- | --- | --- |
-| Новый mono selector | `SequenceFiles` либо отдельный selector после полного MIDI | Повторные атаки, REST, pitch/onset/offset reference |
-| Новый временной эффект | `SequenceTiming` | Длительность, фазу, округление; chart/export/playback должны совпасть |
-| Beat map для variable tempo | `RhythmAnalysis` и shared transform | Нерегулярные доли, phase, скорость, границы tempo changes |
-| Другой transcriber | Новый converter + `MidiConversion` contract | Local/no-overwrite/cancel, полноту MIDI, report validation |
-| Новый waveform backend | Отдельный `IToneOutput` и другая модель событий при необходимости | Реальный timing, mute/cancel и аппаратное измерение |
-| Analog volume | Только после установленного hardware interface | Измеренный механизм; gate duty нельзя переименовать в voltage |
+| Другой mono selector | `SequenceFiles` либо отдельный selector после полного MIDI | Повторные атаки, REST и pitch/onset/offset |
+| Новый временной эффект | `SequenceTiming` | Длительность, фазу и округление; совпадение chart/export/playback |
+| Beat map для variable tempo | `RhythmAnalysis` и shared transform | Нерегулярные доли, phase и смены tempo |
+| Другой transcriber | Converter + `MidiConversion` | Отмену, имена файлов, MIDI и report validation |
+| Waveform output | Новый `IToneOutput` и при необходимости другая модель событий | Реальный timing, остановку и аппаратное измерение |
+| Громкость | Сначала известный hardware interface | Измеренный способ изменения амплитуды |
 
-Первыми полезными следующими проверками остаются clean Windows VM, ручная разметка небольшого музыкального фрагмента и аппаратное A/B. Они закрывают разные вопросы и должны оставаться раздельными.
+Главное удобство этой структуры для меня — музыкальные преобразования можно проверять на обычных данных, не открывая порты. А к hardware возвращаться с уже подготовленной последовательностью и конкретным вопросом для опыта.

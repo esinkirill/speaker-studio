@@ -54,7 +54,7 @@ namespace SpeakerPlayer
             convert.Size = new Size(174, 36); cancel.Size = new Size(132, 36);
             convert.Click += delegate { StartConversion(); }; cancel.Click += delegate { Cancel(); };
             buttons.Controls.Add(convert); buttons.Controls.Add(cancel); layout.Controls.Add(buttons, 0, 3);
-            status.Text = "Без интернета и установки программ. На CPU обработка может занять время.";
+            status.Text = converter.RuntimeReady ? "Модель готова. Конвертация работает локально на CPU." : "Первый запуск: Prepare-Audio.cmd рядом с приложением. Затем конвертация работает локально.";
             status.Dock = DockStyle.Fill; status.ForeColor = Color.FromArgb(132, 151, 173); status.AutoEllipsis = true;
             layout.Controls.Add(status, 0, 4);
             progress.Dock = DockStyle.Fill; progress.Margin = new Padding(0, 4, 0, 14); progress.Minimum = 0; progress.Maximum = 100;
